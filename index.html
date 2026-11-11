@@ -90,12 +90,14 @@ input,textarea,select{font-size:16px}
  <form id="lf">
   <h1>Cloud Chat</h1>
   <p>Pick a username and password. No email needed.</p>
+  <div id="saved"></div>
   <input id="u" placeholder="Username" autocomplete="username" maxlength="20" required>
   <input id="p" type="password" placeholder="Password" autocomplete="current-password" required>
+  <label style="display:flex;gap:8px;align-items:center;color:var(--dim)"><input type="checkbox" id="sl" checked style="width:auto">Stay logged in on this device</label>
   <button type="submit" id="bl">Log in</button>
   <button type="button" class="g" id="bc">Create account</button>
   <div id="err" role="alert"></div>
-  <small style="color:var(--dim)">build 9</small>
+  <small style="color:var(--dim)">build 10</small>
   <details><summary style="color:var(--dim);cursor:pointer">Relay servers</summary>
    <input id="rl" style="margin-top:6px" placeholder="https://your-relay.example/gun, https://another/gun"></details>
  </form>
@@ -103,7 +105,7 @@ input,textarea,select{font-size:16px}
 
 <div id="app" class="hide">
  <aside id="side">
-  <div id="me"><div id="mp" title="Edit profile" style="display:flex;gap:8px;align-items:center;cursor:pointer;min-width:0"><span id="mav"></span><span><span id="mn"></span><br><small id="rs" style="color:var(--dim);font-weight:400"></small></span></div><button class="g sm" id="out">Log out</button></div>
+  <div id="me"><div id="mp" title="Edit profile" style="display:flex;gap:8px;align-items:center;cursor:pointer;min-width:0"><span id="mav"></span><span><span id="mn"></span><br><small id="rs" style="color:var(--dim);font-weight:400"></small></span></div><span style="display:flex;gap:6px"><button class="g sm" id="sw">Switch</button><button class="g sm" id="out">Log out</button></span></div>
   <form id="add"><input id="af" placeholder="Add friend by username" maxlength="20"><button class="sm">Add</button></form>
   <div id="list"></div>
  </aside>
@@ -115,6 +117,13 @@ input,textarea,select{font-size:16px}
  </section>
  <aside id="prof"><button class="g sm" id="pc">Close</button><div id="profc"></div></aside>
 </div>
+
+<dialog id="ad">
+ <h3 style="margin:0 0 10px">Accounts</h3>
+ <div id="al"></div>
+ <p style="color:var(--dim);font-size:13px;margin:10px 0">Saved logins stay in this browser only. Use Forget on shared computers.</p>
+ <div style="display:flex;gap:8px;justify-content:space-between"><button type="button" id="aa">+ Add account</button><button type="button" class="g" id="ax">Close</button></div>
+</dialog>
 
 <dialog id="pd">
  <form method="dialog" id="pf">
@@ -146,6 +155,9 @@ let gun, user, me={}, friends={}, groups={}, chats={}, reqs={}, cur=null, handle
 
 /* ---------- login ---------- */
 const err=t=>$('#err').textContent=t;
+const ACC='cc_accounts', ACT='cc_active';
+const accounts=()=>{try{return JSON.parse(localStorage[ACC]||'{}')}catch(e){return {}}};
+const setAccounts=a=>localStorage[ACC]=JSON.stringify(a);
 function init(){
   const peers=($('#rl').value.split(',').map(s=>s.trim()).filter(Boolean));
   localStorage.cc_relays=peers.join(',');
@@ -176,7 +188,30 @@ function auth(create){
 }
 $('#lf').onsubmit=e=>{e.preventDefault();auth(false)};
 $('#bc').onclick=()=>auth(true);
-$('#out').onclick=()=>{user.leave();location.reload()};
+function logout(n){const a=accounts();delete a[n];setAccounts(a);localStorage[ACT]='';try{user.leave()}catch(e){}location.reload()}
+function accDialog(){
+  const L=$('#al'), a=accounts(); L.textContent='';
+  [...new Set([me.name,...Object.keys(a)])].forEach(n=>{
+    const r=document.createElement('div'), s=document.createElement('span');
+    r.className='row'+(n===me.name?' on':''); s.className='n'; s.textContent=n+(n===me.name?' (current)':''); r.append(s);
+    if(n!==me.name) r.onclick=()=>{localStorage[ACT]=n;location.reload()};
+    if(a[n]){const x=document.createElement('button');x.className='g sm';x.textContent='Forget';
+      x.onclick=e=>{e.stopPropagation();if(n===me.name)return logout(n);delete a[n];setAccounts(a);accDialog()};r.append(x)}
+    L.append(r)});
+  $('#ad').showModal();
+}
+$('#out').onclick=()=>logout(me.name);
+$('#sw').onclick=accDialog;
+$('#ax').onclick=()=>$('#ad').close();
+$('#aa').onclick=()=>{localStorage[ACT]='';location.reload()};
+function renderSaved(){
+  const box=$('#saved'), a=accounts(); box.textContent=''; box.style.cssText='display:grid;gap:8px';
+  Object.keys(a).forEach(n=>{const b=document.createElement('button');b.type='button';b.className='g';b.textContent='Continue as '+n;b.onclick=()=>loginSaved(n);box.append(b)});
+}
+function loginSaved(n){
+  err('Signing in as '+n+'...'); init();
+  user.auth(accounts()[n],a=>{if(a.err){err('Saved login expired. Enter your password.');$('#u').value=n}else start(n)});
+}
 
 /* ---------- helpers ---------- */
 const pairKey=()=>user._.sea;
@@ -274,6 +309,7 @@ $('#pf').onsubmit=()=>{user.get('profile').put({pfp:pend,bio:$('#bio').value.tri
 /* ---------- start ---------- */
 function start(n){
   me={pub:user.is.pub,name:n};
+  if($('#sl').checked||accounts()[n]){const a=accounts();a[n]=pairKey();setAccounts(a);localStorage[ACT]=n}
   $('#login').classList.add('hide'); $('#app').classList.remove('hide');
   $('#mn').textContent=n;
   if('Notification' in window&&Notification.permission==='default') Notification.requestPermission();
@@ -424,6 +460,7 @@ function render(){
   const total=Object.values(chats).reduce((s,c)=>s+c.unread,0)+rs.length;
   document.title=(total?'('+total+') ':'')+'Cloud Chat';
 }
+renderSaved(); {const n0=localStorage[ACT]; if(n0&&accounts()[n0]) loginSaved(n0)}
 </script>
 </body>
 </html>
