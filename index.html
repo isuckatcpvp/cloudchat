@@ -55,7 +55,9 @@ textarea{resize:none;height:70px}
 .dot{position:absolute;right:-3px;bottom:-3px;width:12px;height:12px;border-radius:50%;border:2px solid var(--panel)}
 .dot.online{background:#6fdc8c}.dot.away{background:#f5c451}.dot.dnd{background:#ff6b6b}
 #pp .av{width:64px;height:64px;font-size:26px}
+@supports(height:100dvh){html,body,#app,#login{height:100dvh}}
 @media(max-width:700px){
+input,textarea,select{font-size:16px}
 #app{grid-template-columns:1fr}
 #main{display:none}
 #app.chat #side{display:none}#app.chat #main{display:flex}
@@ -73,6 +75,7 @@ textarea{resize:none;height:70px}
   <button type="submit" id="bl">Log in</button>
   <button type="button" class="g" id="bc">Create account</button>
   <div id="err" role="alert"></div>
+  <small style="color:var(--dim)">build 7</small>
   <details><summary style="color:var(--dim);cursor:pointer">Relay servers</summary>
    <input id="rl" style="margin-top:6px" placeholder="https://your-relay.example/gun, https://another/gun"></details>
  </form>
@@ -114,7 +117,7 @@ textarea{resize:none;height:70px}
 <script src="https://cdn.jsdelivr.net/npm/gun@0.2020.1240/sea.js"></script>
 <script>
 const NS='cakechat1', $=s=>document.querySelector(s), SEA=Gun.SEA;
-const DEFAULT_RELAYS=['https://relay.peer.ooo/gun','https://gun-manhattan.herokuapp.com/gun'];
+const DEFAULT_RELAYS=['https://relay.peer.ooo/gun'];
 const saved=(localStorage.cc_relays||'').split(',').map(s=>s.trim()).filter(Boolean);
 $('#rl').value=saved.join(', ');
 let gun, user, me={}, friends={}, groups={}, chats={}, reqs={}, cur=null, handled={}, epubs={}, secrets={};
@@ -125,34 +128,22 @@ function init(){
   const peers=($('#rl').value.split(',').map(s=>s.trim()).filter(Boolean));
   localStorage.cc_relays=peers.join(',');
   const pub=peers.length?peers:DEFAULT_RELAYS;
-  gun=Gun({peers:pub}); user=gun.user(); watchRelays(pub);
+  gun=Gun({peers:[BACKUP_RELAY,...pub]}); user=gun.user(); watchRelays();
 }
 
-/* ---------- relay failover ----------
-   Starts on public relays. If none answer quickly twice in a row,
-   the backup (your Render relay) is added and stays connected. */
-const BACKUP_RELAY='https://cloudchatrelay.onrender.com/gun'; // <- paste your Render URL
-const SLOW_MS=3000;
-const probe=url=>new Promise(r=>{
-  const t=Date.now(); let ws,to;
-  const done=v=>{clearTimeout(to);try{ws.close()}catch(e){}r(v)};
-  try{ws=new WebSocket(url.replace(/^http/,'ws'))}catch(e){return r(Infinity)}
-  to=setTimeout(()=>done(Infinity),SLOW_MS);
-  ws.onopen=()=>done(Date.now()-t); ws.onerror=()=>done(Infinity);
-});
-let usingBackup=false, strikes=0;
+/* ---------- relays ----------
+   Your Render relay is always connected (first), public relays are extras. */
+const BACKUP_RELAY='https://cloudchatrelay.onrender.com/gun';
+try{fetch(BACKUP_RELAY.replace(/\/gun$/,''),{mode:'no-cors'}).catch(()=>{})}catch(e){} // wake Render while you type
 function setRelayStatus(t){const e=$('#rs');if(e)e.textContent=t}
-function watchRelays(pub){
-  if(BACKUP_RELAY.includes('YOUR-APP')){setRelayStatus('public relays');return}
-  const check=async()=>{
-    if(usingBackup) return;
-    const best=Math.min(...await Promise.all(pub.map(probe)));
-    if(best<SLOW_MS){strikes=0;setRelayStatus('public relays');return}
-    setRelayStatus('public relays slow...');
-    if(++strikes>=2){usingBackup=true;gun.opt({peers:[BACKUP_RELAY]});setRelayStatus('backup relay')}
-  };
-  check(); setInterval(check,10000);
+function watchRelays(){
+  setRelayStatus('connecting...');
+  setInterval(()=>{
+    const ps=Object.values(gun.back('opt.peers')||{});
+    setRelayStatus(ps.some(p=>p.wire&&p.wire.readyState===1)?'connected':'reconnecting...');
+  },2000);
 }
+
 function auth(create){
   const n=$('#u').value.trim().toLowerCase(), p=$('#p').value;
   if(!/^[a-z0-9_]{3,20}$/.test(n)) return err('Username: 3-20 letters, numbers or _');
@@ -275,7 +266,7 @@ async function openChat(id,type,title,pub,key){
     if(cur===id&&!document.hidden){localStorage[lrKey(id)]=Date.now();draw()}
     else if(o.from!==me.pub&&o.t>lr){
       c.unread++;
-      if(document.hidden&&Notification.permission==='granted'&&(profiles[me.pub]||{}).status!=='dnd') new Notification(c.title,{body:o.name+': '+o.text});
+      if(document.hidden&&'Notification' in window&&Notification.permission==='granted'&&(profiles[me.pub]||{}).status!=='dnd') try{new Notification(c.title,{body:o.name+': '+o.text})}catch(e){}
     }
     if(cur===id) draw(); render();
   });
@@ -303,9 +294,11 @@ function draw(){
 }
 $('#send').onsubmit=async e=>{
   e.preventDefault(); const text=$('#mi').value.trim(); if(!text||!cur) return; $('#mi').value='';
-  const c=chats[cur], o={from:me.pub,name:me.name,text,t:Date.now()};
-  c.seen[o.from+'|'+o.t]=1; c.msgs['l'+o.t]=o; draw();
-  gun.get(NS+'/m/'+c.id).set({c:await SEA.encrypt(o,c.key)});
+  try{
+    const c=chats[cur], o={from:me.pub,name:me.name,text,t:Date.now()};
+    c.seen[o.from+'|'+o.t]=1; c.msgs['l'+o.t]=o; draw();
+    gun.get(NS+'/m/'+c.id).set({c:await SEA.encrypt(o,c.key)});
+  }catch(err){$('#mi').value=text;alert('Could not send: '+(err&&err.message||err))}
 };
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&cur){chats[cur].unread=0;localStorage[lrKey(cur)]=Date.now();render()}});
 
