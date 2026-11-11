@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cake Chat</title>
+<title>Cloud Chat</title>
 <style>
 :root{--bg:#1d1718;--panel:#271e20;--line:#3a2d30;--ink:#f6e9e0;--dim:#a8968f;--ac:#f4a6c0;--acink:#2a1219;--bad:#ff8a8a}
 *{box-sizing:border-box}
@@ -60,7 +60,7 @@ dialog label input{width:auto}
 
 <div id="login">
  <form id="lf">
-  <h1>Cake Chat</h1>
+  <h1>Cloud Chat</h1>
   <p>Pick a username and password. No email needed.</p>
   <input id="u" placeholder="Username" autocomplete="username" maxlength="20" required>
   <input id="p" type="password" placeholder="Password" autocomplete="current-password" required>
@@ -304,7 +304,7 @@ function render(){
   Object.values(chats).filter(c=>c.type==='group').forEach(c=>L.append(row(c.id,c)));
   const nb=document.createElement('button');nb.className='g sm';nb.style.margin='6px 8px';nb.textContent='+ New group';nb.onclick=newGroup;L.append(nb);
   const total=Object.values(chats).reduce((s,c)=>s+c.unread,0)+rs.length;
-  document.title=(total?'('+total+') ':'')+'Cake Chat';
+  document.title=(total?'('+total+') ':'')+'Cloud Chat';
 }
 </script>
 </body>
