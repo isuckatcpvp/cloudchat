@@ -57,11 +57,16 @@ textarea{resize:none;height:70px}
 .dot.online{background:#6fdc8c}.dot.away{background:#f5c451}.dot.dnd{background:#ff6b6b}
 #pp .av{width:64px;height:64px;font-size:26px}
 #app.dm{grid-template-columns:300px 1fr 280px}
-#prof{display:none;background:var(--panel);border-left:1px solid var(--line);padding:20px;overflow:auto}
+#prof{display:none;position:relative;background:var(--panel);border-left:1px solid var(--line);overflow:auto}
+#pc{position:absolute;top:10px;right:10px;z-index:2}
+.ban{height:100px;background:linear-gradient(135deg,#2f6fb5,var(--ac) 65%,#b9a8ff)}
+.pbody{padding:8px 20px 24px}
+.pills{display:inline-flex;gap:10px;margin-top:12px;padding:8px 12px;background:#ffffff0d;border:1px solid var(--line);border-radius:12px}
+.pills .bdg{width:24px;height:24px;margin:0}.pills span.bdg{width:auto;font-size:20px;line-height:24px}
 #app.dm #prof{display:block}
-#prof .av{width:96px;height:96px;font-size:40px;margin:0 auto 12px}
-#prof .dot{width:20px;height:20px;right:0;bottom:0}
-#prof h2{margin:0;text-align:center;font-size:20px}
+#prof .av{width:104px;height:104px;font-size:42px;margin:-52px 0 0 20px;border:6px solid var(--panel)}
+#prof .dot{width:22px;height:22px;right:0;bottom:2px}
+#prof h2{margin:0;font-size:22px}
 #prof h4{margin:18px 0 4px;font-size:12px;color:var(--dim);text-transform:uppercase}
 .bdg{width:16px;height:16px;vertical-align:-3px;margin-left:5px;border-radius:3px}
 span.bdg{width:auto;font-size:14px;vertical-align:baseline}
@@ -90,7 +95,7 @@ input,textarea,select{font-size:16px}
   <button type="submit" id="bl">Log in</button>
   <button type="button" class="g" id="bc">Create account</button>
   <div id="err" role="alert"></div>
-  <small style="color:var(--dim)">build 8</small>
+  <small style="color:var(--dim)">build 9</small>
   <details><summary style="color:var(--dim);cursor:pointer">Relay servers</summary>
    <input id="rl" style="margin-top:6px" placeholder="https://your-relay.example/gun, https://another/gun"></details>
  </form>
@@ -108,7 +113,7 @@ input,textarea,select{font-size:16px}
   <div id="ty"></div>
   <form id="send" class="hide"><input id="mi" placeholder="Write a message" autocomplete="off"><button>Send</button></form>
  </section>
- <aside id="prof"><button class="g sm" id="pc" style="margin-bottom:10px">Close</button><div id="profc"></div></aside>
+ <aside id="prof"><button class="g sm" id="pc">Close</button><div id="profc"></div></aside>
 </div>
 
 <dialog id="pd">
@@ -195,10 +200,10 @@ const DEVS=['cloudcpvp_'];                       // usernames that get the dev b
 const EARLY_UNTIL=Date.parse('2026-12-10');      // accounts created before this get the Early Cloud badge
 let joined={}, aliases={}, lastTy=0, drawn=null, actx;
 const fmtDate=t=>new Date(t).toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'});
-function badgeEls(pub){
+function badgeEls(pub,all){
   const out=[], al=aliases[pub], j=joined[pub];
   if(DEVS.includes(al)){const i=new Image();i.src=DEV_BADGE;i.className='bdg';i.title='Developer';i.alt='Dev';out.push(i)}
-  if(j&&j<EARLY_UNTIL){const e=document.createElement('span');e.className='bdg';e.textContent='\u2601\uFE0F';e.title='Early Cloud: joined in the first month';out.push(e)}
+  if(all&&j&&j<EARLY_UNTIL){const e=document.createElement('span');e.className='bdg';e.textContent='\u2601\uFE0F';e.title='Early Cloud: joined in the first month';out.push(e)}
   return out;
 }
 const unlock=()=>{try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();if(actx.state==='suspended')actx.resume()}catch(e){}};
@@ -235,12 +240,17 @@ function hdr(){const c=chats[cur]; if(!c) return; const s=c.pub?stat(c.pub):'';
   $('#hb').textContent=s?LABEL[s]:''; $('#app').classList.toggle('dm',c.type==='dm'); if(c.pub) renderProf(c)}
 function renderProf(c){
   const P=$('#profc'), p=profiles[c.pub]||{}, st=stat(c.pub); P.textContent='';
-  const h=document.createElement('h2'); h.textContent=c.title; h.append(...badgeEls(c.pub));
-  const sl=document.createElement('div'); sl.style.cssText='text-align:center;color:var(--dim)'; sl.textContent=st?LABEL[st]:'Offline';
-  P.append(avEl(c.pub,c.title),h,sl);
+  const ban=document.createElement('div'); ban.className='ban';
+  const body=document.createElement('div'); body.className='pbody';
+  const h=document.createElement('h2'); h.textContent=c.title;
+  const sl=document.createElement('div'); sl.style.color='var(--dim)'; sl.textContent=st?LABEL[st]:'Offline';
+  body.append(h,sl);
+  const bs=badgeEls(c.pub,true);
+  if(bs.length){const r=document.createElement('div');r.className='pills';r.append(...bs);body.append(r)}
   const add=(t,v)=>{const x=document.createElement('h4');x.textContent=t;const y=document.createElement('div');
-    y.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere';y.textContent=v;P.append(x,y)};
+    y.style.cssText='white-space:pre-wrap;overflow-wrap:anywhere';y.textContent=v;body.append(x,y)};
   add('About me',p.bio||'No bio yet'); add('Joined',joined[c.pub]?fmtDate(joined[c.pub]):'Unknown');
+  P.append(ban,avEl(c.pub,c.title),body);
 }
 function watchProfile(pub){
   if(subd[pub]) return; subd[pub]=1;
