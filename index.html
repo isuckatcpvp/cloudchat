@@ -46,7 +46,7 @@ h3{margin:14px 8px 6px;font-size:13px;color:var(--dim);font-weight:700}
 .m b{margin-right:8px}.m time{color:var(--dim);font-size:12px}
 .m div div{white-space:pre-wrap;overflow-wrap:anywhere}
 .empty{margin:auto;color:var(--dim);text-align:center;max-width:300px}
-#send{padding:12px 16px;border-top:1px solid var(--line);display:flex;gap:8px}
+#send{position:relative;padding:12px 16px;border-top:1px solid var(--line);display:flex;gap:8px}
 dialog{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:12px;width:min(380px,92vw)}
 dialog::backdrop{background:#0009}
 dialog label{display:flex;gap:8px;padding:4px 0;align-items:center}
@@ -72,6 +72,17 @@ textarea{resize:none;height:70px}
 .bdg{width:16px;height:16px;vertical-align:-3px;margin-left:5px;border-radius:3px}
 span.bdg{width:auto;font-size:14px;vertical-align:baseline}
 img.emoji{height:1.2em;width:1.2em;margin:0 .05em 0 .1em;vertical-align:-.2em}
+#acl{position:absolute;bottom:100%;left:16px;background:var(--panel);border:1px solid var(--line);border-radius:8px;min-width:170px;display:none;z-index:3}
+.mention{background:color-mix(in srgb,var(--ac) 22%,transparent);color:var(--ac);border-radius:4px;padding:0 3px;font-weight:700}
+.m.ping{background:color-mix(in srgb,var(--ac) 10%,transparent);box-shadow:-3px 0 0 var(--ac)}
+img.att{display:block;max-width:min(320px,100%);max-height:280px;border-radius:8px;margin-top:4px;cursor:zoom-in}
+.badge.ping{background:#ff5a5f;color:#fff;animation:pg 1.2s ease-in-out infinite}
+@keyframes pg{50%{transform:scale(1.15)}}
+#gp{display:none;border-top:1px solid var(--line);padding:10px 16px;background:var(--panel)}
+#gp.on{display:block}
+#gg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;max-height:240px;overflow:auto;margin:8px 0;color:var(--dim)}
+#gg img{width:100%;height:90px;object-fit:cover;border-radius:6px;cursor:pointer}
+#send .g{flex:none;padding:9px 10px}
 #ty{height:22px;padding:0 16px;color:var(--dim);font-size:13px}
 #pv,#pc{display:none}
 @supports(height:100dvh){html,body,#app,#login{height:100dvh}}
@@ -99,7 +110,7 @@ input,textarea,select{font-size:16px}
   <button type="submit" id="bl">Log in</button>
   <button type="button" class="g" id="bc">Create account</button>
   <div id="err" role="alert"></div>
-  <small style="color:var(--dim)">build 12</small>
+  <small style="color:var(--dim)">build 15</small>
   <details><summary style="color:var(--dim);cursor:pointer">Relay servers</summary>
    <input id="rl" style="margin-top:6px" placeholder="https://your-relay.example/gun, https://another/gun"></details>
  </form>
@@ -115,10 +126,14 @@ input,textarea,select{font-size:16px}
   <div id="head"><button class="g sm" id="back">Back</button><button class="g sm" id="pv">Profile</button><span id="ht">Pick a chat</span><small id="hb" style="color:var(--dim);font-weight:400;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></small></div>
   <div id="msgs"><div class="empty">Add a friend or create a group to start chatting.</div></div>
   <div id="ty"></div>
-  <form id="send" class="hide"><input id="mi" placeholder="Write a message" autocomplete="off"><button>Send</button></form>
+  <div id="gp"><input id="gq" placeholder="Search GIFs"><div id="gg"></div><small style="color:var(--dim)">Powered by GIPHY</small></div>
+  <form id="send" class="hide"><div id="acl"></div><button type="button" class="g" id="imb" title="Send an image">Img</button><button type="button" class="g" id="gfb">GIF</button><input id="mi" placeholder="Write a message" autocomplete="off"><button>Send</button></form>
  </section>
  <aside id="prof"><button class="g sm" id="pc">Close</button><div id="profc"></div></aside>
 </div>
+
+<input type="file" id="imf" accept="image/*" class="hide">
+<dialog id="lb" style="padding:6px;width:auto;max-width:94vw"><img id="lbi" alt="" style="display:block;max-width:90vw;max-height:85vh"></dialog>
 
 <dialog id="ad">
  <h3 style="margin:0 0 10px">Accounts</h3>
@@ -261,9 +276,9 @@ const tw=el=>{try{window.twemoji&&twemoji.parse(el,{folder:'svg',ext:'.svg'})}ca
 const unlock=()=>{try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();if(actx.state==='suspended')actx.resume()}catch(e){}};
 ['click','keydown','touchstart'].forEach(e=>addEventListener(e,unlock,{passive:true}));
 let lastDing=0;
-function ding(){
+function ding(hi){
   if(!actx||Date.now()-lastDing<800) return; lastDing=Date.now(); const t=actx.currentTime;
-  [[880,0],[1318,.12]].forEach(([f,d])=>{const o=actx.createOscillator(),g=actx.createGain();o.type='sine';o.frequency.value=f;
+  (hi?[[1046,0],[1568,.1],[2093,.2]]:[[880,0],[1318,.12]]).forEach(([f,d])=>{const o=actx.createOscillator(),g=actx.createGain();o.type='sine';o.frequency.value=f;
     g.gain.setValueAtTime(0,t+d);g.gain.linearRampToValueAtTime(.18,t+d+.01);g.gain.exponentialRampToValueAtTime(.001,t+d+.35);
     o.connect(g).connect(actx.destination);o.start(t+d);o.stop(t+d+.4)});
 }
@@ -431,8 +446,8 @@ async function openChat(id,type,title,pub,key){
     const lr=+localStorage[lrKey(id)]||0;
     if(cur===id&&!document.hidden){localStorage[lrKey(id)]=Date.now();draw()}
     else if(o.from!==me.pub&&o.t>lr){
-      c.unread++; if((profiles[me.pub]||{}).status!=='dnd'&&Date.now()-o.t<20000) ding();
-      if(document.hidden&&'Notification' in window&&Notification.permission==='granted'&&(profiles[me.pub]||{}).status!=='dnd') try{new Notification(c.title,{body:o.name+': '+o.text})}catch(e){}
+      c.unread++; const pg=pings(o,c); if(pg) c.ping=(c.ping||0)+1; if((profiles[me.pub]||{}).status!=='dnd'&&Date.now()-o.t<20000) ding(pg);
+      if(document.hidden&&'Notification' in window&&Notification.permission==='granted'&&(profiles[me.pub]||{}).status!=='dnd') try{new Notification(c.title,{body:o.name+': '+(o.text||(o.gif?'sent a GIF':'sent an image'))})}catch(e){}
     }
     if(cur===id) draw(); render();
   });
@@ -444,35 +459,112 @@ function subTyping(c){
   });
 }
 function select(id){
-  cur=id; const c=chats[id]; c.unread=0; localStorage[lrKey(id)]=Date.now();
+  cur=id; const c=chats[id]; c.unread=0; c.ping=0; if(c.type==='group'&&groups[id]) groups[id].members.forEach(watchProfile); localStorage[lrKey(id)]=Date.now();
   $('#app').classList.add('chat'); $('#send').classList.remove('hide');
   $('#ht').textContent=(c.type==='group'?'# ':'@ ')+c.title; hdr(); draw(); render(); $('#mi').focus();
 }
 $('#back').onclick=()=>{cur=null;$('#app').classList.remove('chat');render()};
 function draw(){
   const box=$('#msgs'), c=chats[cur], near=box.scrollHeight-box.scrollTop-box.clientHeight<150||drawn!==cur, old=box.scrollTop; drawn=cur; box.textContent='';
-  const list=Object.values(c.msgs).filter(m=>m.text).sort((a,b)=>a.t-b.t);
+  const list=Object.values(c.msgs).filter(m=>m.text||m.img||m.gif).sort((a,b)=>a.t-b.t);
   if(!list.length){const d=document.createElement('div');d.className='empty';d.textContent='No messages yet. Say hi.';box.append(d);return}
   for(const m of list){
-    const r=document.createElement('div'); r.className='m';
+    const r=document.createElement('div'); r.className='m'+(pings(m,c)?' ping':'');
     const a=avEl(m.from,m.name);
     const b=document.createElement('div'); b.className='b';
     const h=document.createElement('div'),nm=document.createElement('b'),t=document.createElement('time');
     nm.textContent=m.name; nameFont(nm,m.from); nm.append(...badgeEls(m.from)); t.textContent=new Date(m.t).toLocaleString([], {dateStyle:'short',timeStyle:'short'});
-    h.append(nm,t); const x=document.createElement('div'); x.textContent=m.text;
+    h.append(nm,t); const x=body(m);
     b.append(h,x); r.append(a,b); box.append(r);
   }
   tw(box); box.scrollTop=near?box.scrollHeight:old;
+  box.querySelectorAll('img.att').forEach(i=>i.onload=()=>{if(near)box.scrollTop=box.scrollHeight});
 }
-$('#send').onsubmit=async e=>{
-  e.preventDefault(); const text=$('#mi').value.trim(); if(!text||!cur) return; $('#mi').value='';
+async function post(fields){
+  if(!cur) return;
   try{
-    const c=chats[cur], o={from:me.pub,name:me.name,text,t:Date.now()};
+    const c=chats[cur], o=Object.assign({from:me.pub,name:me.name,t:Date.now()},fields);
     c.seen[o.from+'|'+o.t]=1; c.msgs['l'+o.t]=o; if(c.typ)c.typ={}; draw();
     gun.get(NS+'/m/'+c.id).set({c:await SEA.encrypt(o,c.key)});
-  }catch(err){$('#mi').value=text;alert('Could not send: '+(err&&err.message||err))}
-};
-document.addEventListener('visibilitychange',()=>{if(!document.hidden&&cur){chats[cur].unread=0;localStorage[lrKey(cur)]=Date.now();render()}});
+  }catch(err){alert('Could not send: '+(err&&err.message||err))}
+}
+$('#send').onsubmit=e=>{e.preventDefault();const text=$('#mi').value.trim();if(!text||!cur)return;$('#mi').value='';$('#acl').style.display='none';post({text})};
+
+/* ---------- images, GIFs, pings ---------- */
+const GIPHY_KEY='WrVoDWbZCX32X2BaFJcPt627SBpXqcFn';   // free key: developers.giphy.com -> Create an App -> API
+const UPLOAD_URL='/upload';   // Cloudflare Pages Function (see functions/upload.js)
+const ourImg=u=>{try{const x=new URL(u,location.href);return x.origin===location.origin&&/^\/img\/[a-f0-9]{32}\.(jpg|png|gif|webp)$/.test(x.pathname)}catch(e){return false}};
+const okImg=u=>/^data:image\/(jpeg|png|gif|webp);base64,/.test(u||'')||ourImg(u);
+const okGif=u=>{try{const x=new URL(u);return x.protocol==='https:'&&/(^|\.)giphy\.com$/.test(x.hostname)}catch(e){return false}};
+const mentionRe=/(@[a-z0-9_]{3,20})/gi;
+const pings=(o,c)=>{if(o.from===me.pub||!o.text) return false;
+  return (o.text.match(mentionRe)||[]).some(t=>{const n=t.slice(1).toLowerCase();return n===me.name||(n==='everyone'&&c.type==='group')})};
+function body(m){
+  const d=document.createElement('div');
+  if(m.text) m.text.split(mentionRe).forEach((p,i)=>{if(i%2){const s=document.createElement('span');s.className='mention';s.textContent=p;d.append(s)}else d.append(p)});
+  const src=m.img&&okImg(m.img)?m.img:m.gif&&okGif(m.gif)?m.gif:'';
+  if(src){const i=new Image();i.className='att';i.src=src;i.alt='attachment';i.onclick=()=>{$('#lbi').src=src;$('#lb').showModal()};d.append(i)}
+  return d;
+}
+$('#lb').onclick=()=>$('#lb').close();
+const fitImg=(f,max,q)=>new Promise((res,rej)=>{const i=new Image();i.onerror=()=>rej(new Error('bad image'));
+  i.onload=()=>{const k=Math.min(1,max/Math.max(i.width,i.height)),c=document.createElement('canvas');c.width=Math.round(i.width*k);c.height=Math.round(i.height*k);
+    c.getContext('2d').drawImage(i,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',q))};i.src=URL.createObjectURL(f)});
+const fitBlob=(f,max,q)=>new Promise((res,rej)=>{const i=new Image();i.onerror=()=>rej(new Error('bad image'));
+  i.onload=()=>{const k=Math.min(1,max/Math.max(i.width,i.height)),c=document.createElement('canvas');c.width=Math.round(i.width*k);c.height=Math.round(i.height*k);
+    c.getContext('2d').drawImage(i,0,0,c.width,c.height);c.toBlob(b=>b?res(b):rej(new Error('bad image')),'image/jpeg',q)};i.src=URL.createObjectURL(f)});
+async function upload(blob){
+  const r=await fetch(UPLOAD_URL,{method:'POST',headers:{'content-type':blob.type},body:blob});
+  if(!r.ok) throw new Error('upload '+r.status);
+  const u=(await r.json()).url; if(!ourImg(u)) throw new Error('bad url'); return u;
+}
+async function sendImage(f){
+  if(!cur||!f||!f.type.startsWith('image/')) return;
+  try{
+    const isGif=f.type==='image/gif';
+    try{ // preferred: upload to Cloudflare R2, share only a link
+      if(!isGif||f.size<=2000000){ post({img:await upload(isGif?f:await fitBlob(f,1280,.8))}); return }
+    }catch(e){}
+    // fallback: send the image inside the encrypted message
+    let img;
+    if(isGif){
+      if(f.size>300000) return alert('That GIF is over 300 KB. Use the GIF button instead.');
+      img=await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(f)});
+    }else img=await fitImg(f,720,.65);
+    post({img});
+  }catch(e){alert('Could not read that image')}
+}
+$('#imb').onclick=()=>$('#imf').click();
+$('#imf').onchange=e=>{sendImage(e.target.files[0]);e.target.value=''};
+$('#mi').addEventListener('paste',e=>{const f=[...((e.clipboardData&&e.clipboardData.files)||[])].find(f=>f.type.startsWith('image/'));if(f){e.preventDefault();sendImage(f)}});
+['dragover','drop'].forEach(ev=>$('#msgs').addEventListener(ev,e=>{e.preventDefault();if(ev==='drop')sendImage(e.dataTransfer.files[0])}));
+let gT;
+async function gifSearch(q){
+  const g=$('#gg'); g.textContent='';
+  if(!GIPHY_KEY){g.textContent='GIFs need a free GIPHY API key. Put it in GIPHY_KEY in the script (developers.giphy.com).';return}
+  try{
+    const u='https://api.giphy.com/v1/gifs/'+(q?'search?q='+encodeURIComponent(q)+'&':'trending?')+'api_key='+GIPHY_KEY+'&limit=24&rating=pg-13';
+    const r=await (await fetch(u)).json();
+    (r.data||[]).forEach(x=>{const p=x.images&&x.images.fixed_width_small&&x.images.fixed_width_small.url, f=x.images&&x.images.fixed_width&&x.images.fixed_width.url;
+      if(!okGif(p)||!okGif(f)) return; const i=new Image(); i.src=p; i.loading='lazy'; i.alt=x.title||'gif';
+      i.onclick=()=>{post({gif:f});$('#gp').classList.remove('on')}; g.append(i)});
+    if(!g.children.length) g.textContent='No GIFs found.';
+  }catch(e){g.textContent='Could not load GIFs.'}
+}
+$('#gfb').onclick=()=>{const p=$('#gp');p.classList.toggle('on');if(p.classList.contains('on')){$('#gq').value='';gifSearch('')}};
+$('#gq').oninput=()=>{clearTimeout(gT);gT=setTimeout(()=>gifSearch($('#gq').value.trim()),400)};
+function candidates(c){if(c.type==='dm') return [c.title]; const g=groups[c.id];
+  return ['everyone',...((g&&g.members)||[]).map(aliasOf).filter(n=>n&&n!==me.name)]}
+$('#mi').addEventListener('input',()=>{
+  const c=chats[cur], m=$('#mi').value.match(/@([a-z0-9_]*)$/i), L=$('#acl'); L.textContent='';
+  if(!c||!m){L.style.display='none';return}
+  const q=m[1].toLowerCase(), list=candidates(c).filter(n=>n.toLowerCase().startsWith(q)&&n.toLowerCase()!==q).slice(0,5);
+  if(!list.length){L.style.display='none';return}
+  list.forEach(n=>{const r=document.createElement('div');r.className='row';r.textContent='@'+n;
+    r.onpointerdown=e=>{e.preventDefault();$('#mi').value=$('#mi').value.replace(/@([a-z0-9_]*)$/i,'@'+n+' ');L.style.display='none';$('#mi').focus()};L.append(r)});
+  L.style.display='block';
+});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&cur){chats[cur].unread=0;chats[cur].ping=0;localStorage[lrKey(cur)]=Date.now();render()}});
 
 /* ---------- groups ---------- */
 async function saveGroup(g){user.get('groups').get(g.id).put(await SEA.encrypt(g,pairKey()))}
@@ -497,7 +589,7 @@ function row(id,c){
   const r=document.createElement('div'); r.className='row'+(cur===id?' on':''); r.onclick=()=>select(id);
   const a=avEl(c.pub,c.title,c.type==='group');
   const n=document.createElement('span'); n.className='n'; n.textContent=c.title; r.append(a,n);
-  if(c.unread){const b=document.createElement('span');b.className='badge';b.textContent=c.unread;r.append(b)}
+  if(c.unread){const b=document.createElement('span');b.className='badge'+(c.ping?' ping':'');b.textContent=c.unread;r.append(b)}
   return r;
 }
 function render(){
