@@ -110,7 +110,7 @@ input,textarea,select{font-size:16px}
   <button type="submit" id="bl">Log in</button>
   <button type="button" class="g" id="bc">Create account</button>
   <div id="err" role="alert"></div>
-  <small style="color:var(--dim)">build 15</small>
+  <small style="color:var(--dim)">build 16</small>
   <details><summary style="color:var(--dim);cursor:pointer">Relay servers</summary>
    <input id="rl" style="margin-top:6px" placeholder="https://your-relay.example/gun, https://another/gun"></details>
  </form>
@@ -503,7 +503,8 @@ function body(m){
   const d=document.createElement('div');
   if(m.text) m.text.split(mentionRe).forEach((p,i)=>{if(i%2){const s=document.createElement('span');s.className='mention';s.textContent=p;d.append(s)}else d.append(p)});
   const src=m.img&&okImg(m.img)?m.img:m.gif&&okGif(m.gif)?m.gif:'';
-  if(src){const i=new Image();i.className='att';i.src=src;i.alt='attachment';i.onclick=()=>{$('#lbi').src=src;$('#lb').showModal()};d.append(i)}
+  if(src){const i=new Image();i.className='att';i.src=src;i.alt='attachment';let n=0; if(!src.startsWith('data:')) i.onerror=()=>{if(n++<6) setTimeout(()=>{i.src=src+'?r='+n},4000)}; // new uploads can take a moment to appear
+    i.onclick=()=>{$('#lbi').src=src;$('#lb').showModal()};d.append(i)}
   return d;
 }
 $('#lb').onclick=()=>$('#lb').close();
